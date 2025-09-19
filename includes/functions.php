@@ -61,12 +61,12 @@ function isValidPdf($filePath) {
  * Upload a file with security checks
  */
 function uploadFile($file, $targetDir, $allowedExtensions = ['pdf']) {
-    $errors = [];
+    $errors = array();
     
     // Check for upload errors
     if ($file['error'] !== UPLOAD_ERR_OK) {
         $errors[] = "File upload failed with error code: " . $file['error'];
-        return [false, $errors];
+        return array(false, $errors);
     }
     
     // Check file size (max 10MB)
@@ -87,22 +87,22 @@ function uploadFile($file, $targetDir, $allowedExtensions = ['pdf']) {
     $targetPath = $targetDir . $uniqueName;
     
     // Move uploaded file
-    if (empty($errors) {
+    if (empty($errors)) {
         if (move_uploaded_file($file['tmp_name'], $targetPath)) {
             // Additional validation for PDF files
             if ($fileExtension === 'pdf' && !isValidPdf($targetPath)) {
                 unlink($targetPath);
                 $errors[] = "Uploaded file is not a valid PDF.";
-                return [false, $errors];
+                return array(false, $errors);
             }
             
-            return [$uniqueName, $errors];
+            return array($uniqueName, $errors);
         } else {
             $errors[] = "Failed to move uploaded file.";
         }
     }
     
-    return [false, $errors];
+    return array(false, $errors);
 }
 
 /**
@@ -137,11 +137,11 @@ function getPaginationParams($currentPage, $itemsPerPage = 10) {
     $currentPage = max(1, (int)$currentPage);
     $offset = ($currentPage - 1) * $itemsPerPage;
     
-    return [
+    return array(
         'current_page' => $currentPage,
         'items_per_page' => $itemsPerPage,
         'offset' => $offset
-    ];
+    );
 }
 
 /**
@@ -189,5 +189,194 @@ function generatePagination($totalItems, $currentPage, $itemsPerPage = 10, $urlP
     $html .= '</ul></nav>';
     
     return $html;
+}
+
+/**
+ * Get user role badge color
+ */
+function getRoleBadgeColor($role) {
+    switch ($role) {
+        case 'admin':
+            return 'danger';
+        case 'teacher':
+            return 'success';
+        case 'student':
+            return 'info';
+        default:
+            return 'secondary';
+    }
+}
+
+/**
+ * Check if user can access resource
+ */
+function canAccessResource($userId, $resourceId) {
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        $query = "SELECT uploaded_by FROM resources WHERE resource_id = :resource_id";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':resource_id', $resourceId, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $resource = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $resource && ($resource['uploaded_by'] == $userId || hasRole('admin'));
+    } catch(PDOException $e) {
+        error_log("Resource access check error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Get resource types for dropdown
+ */
+function getResourceTypes() {
+    return array(
+        'video' => 'Video',
+        'pdf' => 'PDF',
+        'mindmap' => 'Mind Map',
+        'quiz' => 'Quiz',
+        'link' => 'Link'
+    );
+}
+
+/**
+ * Validate YouTube URL
+ */
+function isValidYouTubeUrl($url) {
+    $pattern = '/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/';
+    return preg_match($pattern, $url);
+}
+
+/**
+ * Extract YouTube video ID
+ */
+function getYouTubeVideoId($url) {
+    $pattern = '/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^&?\/ ]{11})/';
+    preg_match($pattern, $url, $matches);
+    return isset($matches[1]) ? $matches[1] : false;
+}
+
+/**
+ * Get embedded YouTube URL
+ */
+function getYouTubeEmbedUrl($url) {
+    $videoId = getYouTubeVideoId($url);
+    return $videoId ? 'https://www.youtube.com/embed/' . $videoId : false;
+}
+
+/**
+ * Sanitize filename
+ */
+function sanitizeFilename($filename) {
+    // Remove any path information
+    $filename = basename($filename);
+    
+    // Replace spaces with underscores
+    $filename = str_replace(' ', '_', $filename);
+    
+    // Remove special characters
+    $filename = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $filename);
+    
+    // Limit length
+    if (strlen($filename) > 100) {
+        $filename = substr($filename, 0, 100);
+    }
+    
+    return $filename;
+}
+
+/**
+ * Get user's uploaded resources count
+ */
+function getUserResourcesCount($userId) {
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        $query = "SELECT COUNT(*) as count FROM resources WHERE uploaded_by = :user_id";
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['count'];
+    } catch(PDOException $e) {
+        error_log("User resources count error: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Get recent activities
+ */
+function getRecentActivities($limit = 10) {
+    $logFile = __DIR__ . '/../logs/activity.log';
+    
+    if (!file_exists($logFile)) {
+        return array();
+    }
+    
+    $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $lines = array_slice(array_reverse($lines), 0, $limit);
+    
+    return $lines;
+}
+
+/**
+ * Send email notification
+ */
+function sendEmailNotification($to, $subject, $message) {
+    // Basic email headers
+    $headers = "From: no-reply@edusphere.com\r\n";
+    $headers .= "Reply-To: no-reply@edusphere.com\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    
+    // Send email (this is a basic implementation)
+    return mail($to, $subject, $message, $headers);
+}
+
+/**
+ * Get system statistics
+ */
+function getSystemStats() {
+    try {
+        $database = new Database();
+        $db = $database->getConnection();
+        
+        $stats = array();
+        
+        // Total users
+        $query = "SELECT COUNT(*) as count FROM users";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        $stats['total_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Total resources
+        $query = "SELECT COUNT(*) as count FROM resources";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        $stats['total_resources'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Total classes
+        $query = "SELECT COUNT(*) as count FROM classes";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        $stats['total_classes'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Resources by type
+        $query = "SELECT type, COUNT(*) as count FROM resources GROUP BY type";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        $stats['resources_by_type'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        return $stats;
+    } catch(PDOException $e) {
+        error_log("System stats error: " . $e->getMessage());
+        return array();
+    }
 }
 ?>

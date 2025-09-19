@@ -44,6 +44,35 @@
                         </li>
                     <?php endif; ?>
                 </ul>
+                <!-- ... existing code ... -->
+<ul class="navbar-nav">
+    <?php if (isset($_SESSION['user_id'])): ?>
+        <li class="nav-item">
+            <span class="nav-link">Welcome, <?php echo htmlspecialchars($_SESSION['full_name']); ?></span>
+        </li>
+        <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+            <li class="nav-item">
+                <a class="nav-link" href="<?php echo BASE_URL; ?>/admin/dashboard.php">Admin</a>
+            </li>
+        <?php endif; ?>
+        <li class="nav-item">
+            <a class="nav-link" href="<?php echo BASE_URL; ?>/profile.php">Profile</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?php echo BASE_URL; ?>/logout.php">Logout</a>
+        </li>
+    <?php else: ?>
+        <li class="nav-item">
+            <a class="nav-link" href="<?php echo BASE_URL; ?>/login.php">Login</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?php echo BASE_URL; ?>/register.php">Register</a>
+        </li>
+    <?php endif; ?>
+</ul>
+<!-- ... existing code ... -->
             </div>
         </div>
     </nav>
+
+    
